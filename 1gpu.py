@@ -43,7 +43,13 @@ n_layers = 6  # number of Encoder of Decoder Layer
 n_heads = 8  # number of heads in Multi-Head Attention
 
 def make_batch(sentences):
-    input_batch = [[src_vocab[n] for n in sentences[0].split()]]
+    input_batch = [[src_vocab[n] for n in sentences[0].split()]]#
+    '''
+    关于input_batch ,output_bathc ,traagtet _batch 怎么理解?
+    怎么弄了3个???
+    '''
+
+
     output_batch = [[tgt_vocab[n] for n in sentences[1].split()]]
     target_batch = [[tgt_vocab[n] for n in sentences[2].split()]]
     return Variable(torch.LongTensor(input_batch)), Variable(torch.LongTensor(output_batch)), Variable(torch.LongTensor(target_batch))
@@ -87,7 +93,7 @@ class ScaledDotProductAttention(nn.Module):
         # 修改为负无穷,softmax之后得到的attention是0,表示不对这个位置进行学习.不关心这个位置.attn:1,8,5,5
         attn = nn.Softmax(dim=-1)(scores)#高维矩阵乘法,会自动看做最后的2维组成的矩阵来做乘法.其他的作为数量看.
         context = torch.matmul(attn, V)#attn 和原始矩阵V乘法就表示注意力使用了.
-        return context, attn
+        return context, attn#理解上面attn,因为是左乘一个下三角矩阵,用三种矩阵基本变换来理解就行了,直接就等价于若干个把当前行*一个系数加到下面的行上.所以从V这个矩阵看,时间轴上的变化是从以前影响到将来的是符合要求的.V的行数越大代表时间越靠后.这个为什么表示时间呢,因为跟V的输入有关.
 
 class MultiHeadAttention(nn.Module):
     def __init__(self):
@@ -102,7 +108,7 @@ class MultiHeadAttention(nn.Module):
         q_s = self.W_Q(Q).view(batch_size, -1, n_heads, d_k).transpose(1,2)  # q_s: [batch_size x n_heads x len_q x d_k]
         k_s = self.W_K(K).view(batch_size, -1, n_heads, d_k).transpose(1,2)  # k_s: [batch_size x n_heads x len_k x d_k]
         v_s = self.W_V(V).view(batch_size, -1, n_heads, d_v).transpose(1,2)  # v_s: [batch_size x n_heads x len_k x
-        # d_v] #     batch *头数量*步长* 深度
+        # d_v] #     batch *头数量*步长* 深度  从这里面就看出来v的第三个分量表示的是时间轴!!!!!解释了attn为什么需要一个下三角剧zhen
 
         attn_mask = attn_mask.unsqueeze(1).repeat(1, n_heads, 1, 1) # attn_mask : [batch_size x n_heads x len_q x len_k]
 
@@ -179,7 +185,7 @@ class Decoder(nn.Module):
         dec_self_attn_pad_mask = get_attn_pad_mask(dec_inputs, dec_inputs).cuda()
         dec_self_attn_subsequent_mask = get_attn_subsequent_mask(dec_inputs).cuda()#只有这个地方跟encoder不一样.
         dec_self_attn_mask = torch.gt((dec_self_attn_pad_mask + dec_self_attn_subsequent_mask).cuda(), 0).cuda()#表示可以遮挡的地方都遮挡上.
-
+#get_attn_pad_mask 这个函数让编码为0的不起作用.get_attn_subsequent_mask 让后续的不起作用.因为inference时候只能从左到有推断.
         dec_enc_attn_mask = get_attn_pad_mask(dec_inputs, enc_inputs)
 
         dec_self_attns, dec_enc_attns = [], []
@@ -246,7 +252,59 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 for epoch in range(20):
     optimizer.zero_grad()
+    ###########----------建立自己数据--------------##########################
+    '''
+    下面用自己的数据:
+    '''
+    import torch
 
+    import torch.utils.data as Data
+    with open ('chineseEnglishDataCoded.bpe') as file:
+        tmp=file.readlines()
+
+    BATCH_SIZE = 5  # 批训练的数据个数，每组五个
+
+    x = torch.zeros(10, 15)  # x data (torch tensor)
+
+    y = torch.ones(10, 15)  # y data (torch tensor)
+
+    # 先转换成 torch 能识别的 Dataset
+
+    torch_dataset = Data.TensorDataset(x, y)
+
+    # 把 dataset 放入 DataLoader
+
+    loader = Data.DataLoader(
+
+        dataset=torch_dataset,  # torch TensorDataset format
+
+        batch_size=BATCH_SIZE,  # 每组的大小
+
+        shuffle=False,  # 要不要打乱数据 (打乱比较好)
+
+    )
+
+    for epoch in range(3):  # 对整套数据训练三次，每次训练的顺序可以不同
+
+        for step, (x, y) in enumerate(loader):  # 每一步 loader 释放一小批数据用来学习
+
+            # 假设这里就是你训练的地方...
+
+            # 打出来一些数据
+
+            print('Epoch: ', epoch, '| Step: ', step, '| batch x: ',
+
+                  x.numpy(), '| batch y: ', y.numpy())
+
+
+
+
+
+
+
+
+
+    ###########----------数据准备完毕--------------##########################
     enc_inputs, dec_inputs, target_batch = make_batch(sentences)
     model=model.cuda()
     enc_inputs=enc_inputs.cuda()
