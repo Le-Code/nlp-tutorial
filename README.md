@@ -1,3 +1,15 @@
+非常牛逼的一套nlp.
+就是缺训练参数模型.
+代码都最短,思路更清晰
+
+
+
+
+
+
+
+
+
 ## nlp-tutorial
 
 <p align="center"><img width="100" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/TensorFlowLogo.svg/225px-TensorFlowLogo.svg.png" />  <img width="100" src="https://media-thumbs.golden.com/OLqzmrmwAzY1P7Sl29k2T9WjJdM=/200x200/smart/golden-storage-production.s3.amazonaws.com/topic_images/e08914afa10a4179893eeb07cb5e4713.png" /></p>

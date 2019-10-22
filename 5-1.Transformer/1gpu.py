@@ -2,7 +2,7 @@
   code by Tae Hwan Jung(Jeff Jung) @graykode, Derek Miller @dmmiller612
   Reference : https://github.com/jadore801120/attention-is-all-you-need-pytorch
               https://github.com/JayParks/transformer
-'''
+'''#改成gpu版本https://blog.csdn.net/qq_28444159/article/details/78781201
 import warnings
 import torch
 
@@ -65,13 +65,13 @@ def get_attn_pad_mask(seq_q, seq_k):
     batch_size, len_k = seq_k.size()
     # eq(zero) is PAD token
     pad_attn_mask = seq_k.data.eq(0).unsqueeze(1)  # batch_size x 1 x len_k(=len_q), one is masking
-    pad_attn_mask = pad_attn_mask.byte()
+    pad_attn_mask = pad_attn_mask.byte()#expand 进行复制的函数.根据shape自动识别复制的方向.
     return pad_attn_mask.expand(batch_size, len_q, len_k)  # batch_size x len_q x len_k
 
 def get_attn_subsequent_mask(seq):
     attn_shape = [seq.size(0), seq.size(1), seq.size(1)]
     subsequent_mask = np.triu(np.ones(attn_shape), k=1)
-    subsequent_mask = torch.from_numpy(subsequent_mask).byte()
+    subsequent_mask = torch.from_numpy(subsequent_mask).byte()#就是返回一个上三角矩阵
     return subsequent_mask
 
 class ScaledDotProductAttention(nn.Module):
@@ -104,8 +104,8 @@ class MultiHeadAttention(nn.Module):
         # context: [batch_size x n_heads x len_q x d_v], attn: [batch_size x n_heads x len_q(=len_k) x len_k(=len_q)]
         context, attn = ScaledDotProductAttention()(q_s, k_s, v_s, attn_mask)
         context = context.transpose(1, 2).contiguous().view(batch_size, -1, n_heads * d_v) # context: [batch_size x len_q x n_heads * d_v]
-        output = nn.Linear(n_heads * d_v, d_model)(context)
-        return nn.LayerNorm(d_model)(output + residual), attn # output: [batch_size x len_q x d_model]
+        output = nn.Linear(n_heads * d_v, d_model).cuda()(context)
+        return nn.LayerNorm(d_model).cuda()(output + residual), attn # output: [batch_size x len_q x d_model]
 
 class PoswiseFeedForwardNet(nn.Module):
     def __init__(self):
@@ -117,7 +117,7 @@ class PoswiseFeedForwardNet(nn.Module):
         residual = inputs # inputs : [batch_size, len_q, d_model]
         output = nn.ReLU()(self.conv1(inputs.transpose(1, 2)))
         output = self.conv2(output).transpose(1, 2)
-        return nn.LayerNorm(d_model)(output + residual)
+        return nn.LayerNorm(d_model).cuda()(output + residual)
 
 class EncoderLayer(nn.Module):
     def __init__(self):
@@ -170,9 +170,10 @@ class Decoder(nn.Module):
 
     def forward(self, dec_inputs, enc_inputs, enc_outputs): # dec_inputs : [batch_size x target_len]
         dec_outputs = self.tgt_emb(dec_inputs) + self.pos_emb(dec_inputs)
-        dec_self_attn_pad_mask = get_attn_pad_mask(dec_inputs, dec_inputs)
-        dec_self_attn_subsequent_mask = get_attn_subsequent_mask(dec_inputs)
-        dec_self_attn_mask = torch.gt((dec_self_attn_pad_mask + dec_self_attn_subsequent_mask), 0)
+        dec_outputs=dec_outputs.cuda()
+        dec_self_attn_pad_mask = get_attn_pad_mask(dec_inputs, dec_inputs).cuda()
+        dec_self_attn_subsequent_mask = get_attn_subsequent_mask(dec_inputs).cuda()
+        dec_self_attn_mask = torch.gt((dec_self_attn_pad_mask + dec_self_attn_subsequent_mask).cuda(), 0).cuda()
 
         dec_enc_attn_mask = get_attn_pad_mask(dec_inputs, enc_inputs)
 
@@ -230,13 +231,7 @@ def greedy_decoder(model, enc_input, start_symbol):
     return dec_input
 
 def showgraph(attn):
-    attn = attn[-1].squeeze(0)[0]
-    attn = attn.squeeze(0).data.numpy()
-    fig = plt.figure(figsize=(n_heads, n_heads)) # [n_heads, n_heads]
-    ax = fig.add_subplot(1, 1, 1)
-    ax.matshow(attn, cmap='viridis')
-    ax.set_xticklabels(['']+sentences[0].split(), fontdict={'fontsize': 14}, rotation=90)
-    ax.set_yticklabels(['']+sentences[2].split(), fontdict={'fontsize': 14})
+    pass
 
 
 model = Transformer()
@@ -248,6 +243,10 @@ for epoch in range(20):
     optimizer.zero_grad()
 
     enc_inputs, dec_inputs, target_batch = make_batch(sentences)
+    model=model.cuda()
+    enc_inputs=enc_inputs.cuda()
+    dec_inputs=dec_inputs.cuda()
+    target_batch=target_batch.cuda()
 
 
 

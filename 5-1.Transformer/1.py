@@ -65,13 +65,13 @@ def get_attn_pad_mask(seq_q, seq_k):
     batch_size, len_k = seq_k.size()
     # eq(zero) is PAD token
     pad_attn_mask = seq_k.data.eq(0).unsqueeze(1)  # batch_size x 1 x len_k(=len_q), one is masking
-    pad_attn_mask = pad_attn_mask.byte()
+    pad_attn_mask = pad_attn_mask.byte()#expand 进行复制的函数.根据shape自动识别复制的方向.
     return pad_attn_mask.expand(batch_size, len_q, len_k)  # batch_size x len_q x len_k
 
 def get_attn_subsequent_mask(seq):
     attn_shape = [seq.size(0), seq.size(1), seq.size(1)]
     subsequent_mask = np.triu(np.ones(attn_shape), k=1)
-    subsequent_mask = torch.from_numpy(subsequent_mask).byte()
+    subsequent_mask = torch.from_numpy(subsequent_mask).byte()#就是返回一个上三角矩阵
     return subsequent_mask
 
 class ScaledDotProductAttention(nn.Module):
@@ -186,9 +186,9 @@ class Decoder(nn.Module):
 class Transformer(nn.Module):
     def __init__(self):
         super(Transformer, self).__init__()
-        self.encoder = Encoder().cuda()
-        self.decoder = Decoder().cuda()
-        self.projection = nn.Linear(d_model, tgt_vocab_size, bias=False).cuda()
+        self.encoder = Encoder()
+        self.decoder = Decoder()
+        self.projection = nn.Linear(d_model, tgt_vocab_size, bias=False)
     def forward(self, enc_inputs, dec_inputs):
         enc_outputs, enc_self_attns = self.encoder(enc_inputs)
         dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_inputs, enc_outputs)
