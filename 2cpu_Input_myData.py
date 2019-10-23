@@ -5,6 +5,78 @@
 '''#改成gpu版本https://blog.csdn.net/qq_28444159/article/details/78781201#这个文件可以直接跑.用的是gpu
 
 
+
+#
+#版本信息:pip install numpy==1.16.2
+#------------所有超参数
+juzichang=100
+
+BATCH_SIZE = 1  # 批训练的数据个数，每组五个
+batch_size=BATCH_SIZE
+epoch_num=5
+
+
+
+
+
+#----------建立自己数据--------------##########################
+import numpy as np
+'''
+下面用自己的数据:
+'''
+# https://stackoverflow.com/questions/35871920/numpy-loadtxt-valueerror-wrong-number-of-columns
+import torch
+torch.cuda.synchronize()
+
+import torch.utils.data as Data
+
+with open('chineseEnglishDataCoded.bpe') as file:
+    tmp = file.readlines()
+    tmp=tmp[:-1] #去掉最后一行空白字符,否则没法float转化
+    yingyu = []
+    hanyu1 = []
+    hanyu2 = []
+    print(len(tmp))
+    for i in range(len(tmp)):
+        if i % 2 == 0:
+            yingyu.append([int(j) for j in tmp[i].strip('\n').split(' ')] + [0.])
+        else:
+            hanyu1.append([0.] + [int(j) for j in tmp[i].strip('\n').split(' ')])
+            hanyu2.append([int(j) for j in tmp[i].strip('\n').split(' ')] + [0.])
+
+#补0
+yingyu=[i+[0.]*(juzichang-len(i)) for i in yingyu]
+hanyu1=[i+[0.]*(juzichang-len(i)) for i in hanyu1]
+hanyu2=[i+[0.]*(juzichang-len(i)) for i in hanyu2]
+
+#去除过长的数据
+index_all=set()
+print(index_all)
+
+print(len(yingyu))
+print(len(hanyu1))
+print(len(hanyu2))
+
+for i in range(len(yingyu)):
+    if len(yingyu[i])>juzichang:
+        index_all.add(i)
+    if len(hanyu1[i])>juzichang:
+        index_all.add(i)
+    if len(hanyu2[i])>juzichang:
+        index_all.add(i)
+
+yingyu=[yingyu[i] for i in range(len(yingyu)) if i not in index_all]
+hanyu1=[hanyu1[i] for i in range(len(hanyu1)) if i not in index_all]
+hanyu2=[hanyu2[i] for i in range(len(hanyu2)) if i not in index_all]
+
+from torch.autograd import Variable
+
+yingyu =(-1)* torch.LongTensor(yingyu)#? 输入数据怎么还需要求导????
+hanyu1 = (-1)*torch.LongTensor(hanyu1)
+hanyu2 =(-1)* torch.LongTensor(hanyu2)
+
+
+###############################处理完毕#$############
 import warnings
 import torch
 
@@ -21,150 +93,54 @@ import matplotlib.pyplot as plt
 import torch
 
 import torch.utils.data as Data
+# 先转换成 torch 能识别的 Dataset
+#先拿一个小数据试试
 
 
 
-##
-#版本信息:pip install numpy==1.16.2
-#------------所有超参数
-juzichang=100
+torch_dataset = Data.TensorDataset(yingyu, hanyu1,hanyu2)
 
-BATCH_SIZE = 128  # 批训练的数据个数，每组五个
+# 把 dataset 放入 DataLoader
 
-epoch_num=5
+loader = Data.DataLoader(
 
+    dataset=torch_dataset,  # torch TensorDataset format
 
+    batch_size=BATCH_SIZE,  # 每组的大小
 
+    shuffle=False,  # 要不要打乱数据 (打乱比较好)
 
+)
 
-###########----------建立自己数据--------------##########################
-import numpy as np
-'''
-下面用自己的数据:
-'''
-# https://stackoverflow.com/questions/35871920/numpy-loadtxt-valueerror-wrong-number-of-columns
-import torch
+# for epoch in range(epoch_num):  # 对整套数据训练三次，每次训练的顺序可以不同
+#
+#     for step, (x, y,z) in enumerate(loader):  # 每一步 loader 释放一小批数据用来学习
+#
+#         # 假设这里就是你训练的地方...
+#
+#         # 打出来一些数据
+#
+#         # print('Epoch: ', epoch, '| Step: ', step, '| batch x: ',
+#         #
+#         #       x.numpy(), '| batch y: ', y.numpy(), '| batch zy: ', z.numpy())
+#         print(x.shape)
 
-import torch.utils.data as Data
-if 0:
-    with open('chineseEnglishDataCoded.bpe') as file:
-        tmp = file.readlines()
-        tmp=tmp[:-1] #去掉最后一行空白字符,否则没法float转化
-        yingyu = []
-        hanyu1 = []
-        hanyu2 = []
-        print(len(tmp))
-        for i in range(len(tmp)):
-            if i % 2 == 0:
-                yingyu.append([float(j) for j in tmp[i].strip('\n').split(' ')] + [0.])
-            else:
-                hanyu1.append([0.] + [float(j) for j in tmp[i].strip('\n').split(' ')])
-                hanyu2.append([float(j) for j in tmp[i].strip('\n').split(' ')] + [0.])
 
-    #补0
-    yingyu=[i+[0.]*(juzichang-len(i)) for i in yingyu]
-    hanyu1=[i+[0.]*(juzichang-len(i)) for i in hanyu1]
-    hanyu2=[i+[0.]*(juzichang-len(i)) for i in hanyu2]
 
-    #去除过长的数据
-    index_all=set()
-    print(index_all)
 
-    print(len(yingyu))
-    print(len(hanyu1))
-    print(len(hanyu2))
 
-    for i in range(len(yingyu)):
-        if len(yingyu[i])>juzichang:
-            index_all.add(i)
-        if len(hanyu1[i])>juzichang:
-            index_all.add(i)
-        if len(hanyu2[i])>juzichang:
-            index_all.add(i)
 
-    yingyu=[yingyu[i] for i in range(len(yingyu)) if i not in index_all]
-    hanyu1=[hanyu1[i] for i in range(len(hanyu1)) if i not in index_all]
-    hanyu2=[hanyu2[i] for i in range(len(hanyu2)) if i not in index_all]
 
 
 
-    ##
-    yingyu = torch.FloatTensor(yingyu)
-    hanyu1 = torch.FloatTensor(hanyu1)
-    hanyu2 = torch.FloatTensor(hanyu2)
 
 
-###############################处理完毕#$############
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-#####################################################
-
-
-    # 先转换成 torch 能识别的 Dataset
-    #先拿一个小数据试试
-    yingyu=yingyu[:10]
-    hanyu1=hanyu1[:10]
-    hanyu2=hanyu2[:10]
-
-
-    torch_dataset = Data.TensorDataset(yingyu, hanyu1,hanyu2)
-
-    # 把 dataset 放入 DataLoader
-
-    loader = Data.DataLoader(
-
-        dataset=torch_dataset,  # torch TensorDataset format
-
-        batch_size=BATCH_SIZE,  # 每组的大小
-
-        shuffle=False,  # 要不要打乱数据 (打乱比较好)
-
-    )
-
-    for epoch in range(epoch_num):  # 对整套数据训练三次，每次训练的顺序可以不同
-
-        for step, (x, y,z) in enumerate(loader):  # 每一步 loader 释放一小批数据用来学习
-
-            # 假设这里就是你训练的地方...
-
-            # 打出来一些数据
-
-            # print('Epoch: ', epoch, '| Step: ', step, '| batch x: ',
-            #
-            #       x.numpy(), '| batch y: ', y.numpy(), '| batch zy: ', z.numpy())
-            print(x.shape)
-
-
-##
-
-
-
-
-
-
-
-
-
-
-
-
-
-dtype = torch.FloatTensor
 # S: Symbol that shows starting of decoding input
 # E: Symbol that shows starting of decoding output
 # P: Symbol that will fill in blank sequence if current batch data size is short than time steps  占位符
@@ -173,11 +149,11 @@ sentences = ['ich mochte ein bier P', 'S i want a beer', 'i want a beer E']
 # Transformer Parameters
 # Padding Should be Zero index
 src_vocab = {'P' : 0, 'ich' : 1, 'mochte' : 2, 'ein' : 3, 'bier' : 4}
-src_vocab_size = len(src_vocab)
+src_vocab_size = 32000
 
 tgt_vocab = {'P' : 0, 'i' : 1, 'want' : 2, 'a' : 3, 'beer' : 4, 'S' : 5, 'E' : 6}
 number_dict = {i: w for i, w in enumerate(tgt_vocab)}
-tgt_vocab_size = len(tgt_vocab)
+tgt_vocab_size = 32000
 
 # src_len = 5
 # tgt_len = 5
@@ -255,6 +231,7 @@ class MultiHeadAttention(nn.Module):
         self.W_V = nn.Linear(d_model, d_v * n_heads)
     def forward(self, Q, K, V, attn_mask):
         # q: [batch_size x len_q x d_model], k: [batch_size x len_k x d_model], v: [batch_size x len_k x d_model]
+
         residual, batch_size = Q, Q.size(0)
         # (B, S, D) -proj-> (B, S, D) -split-> (B, S, H, W) -trans-> (B, H, S, W)
         q_s = self.W_Q(Q).view(batch_size, -1, n_heads, d_k).transpose(1,2)  # q_s: [batch_size x n_heads x len_q x d_k]
@@ -267,8 +244,8 @@ class MultiHeadAttention(nn.Module):
         # context: [batch_size x n_heads x len_q x d_v], attn: [batch_size x n_heads x len_q(=len_k) x len_k(=len_q)]
         context, attn = ScaledDotProductAttention()(q_s, k_s, v_s, attn_mask)
         context = context.transpose(1, 2).contiguous().view(batch_size, -1, n_heads * d_v) # context: [batch_size x len_q x n_heads * d_v]
-        output = nn.Linear(n_heads * d_v, d_model).cuda()(context)#contiguous()是旧版pytorch写法,为了后面使用.view  https://blog.csdn.net/appleml/article/details/80143212
-        return nn.LayerNorm(d_model).cuda()(output + residual), attn # output: [batch_size x len_q x d_model]
+        output = nn.Linear(n_heads * d_v, d_model)(context)#contiguous()是旧版pytorch写法,为了后面使用.view  https://blog.csdn.net/appleml/article/details/80143212
+        return nn.LayerNorm(d_model)(output + residual), attn # output: [batch_size x len_q x d_model]
 
 class PoswiseFeedForwardNet(nn.Module):
     def __init__(self):
@@ -280,7 +257,7 @@ class PoswiseFeedForwardNet(nn.Module):
         residual = inputs # inputs : [batch_size, len_q, d_model]
         output = nn.ReLU()(self.conv1(inputs.transpose(1, 2)))
         output = self.conv2(output).transpose(1, 2)
-        return nn.LayerNorm(d_model).cuda()(output + residual)
+        return nn.LayerNorm(d_model)(output + residual)
 
 class EncoderLayer(nn.Module):
     def __init__(self):
@@ -316,7 +293,17 @@ class Encoder(nn.Module):
         self.layers = nn.ModuleList([EncoderLayer() for _ in range(n_layers)])
 
     def forward(self, enc_inputs): # enc_inputs : [batch_size x source_len]
-        enc_outputs = self.src_emb(enc_inputs) + self.pos_emb(enc_inputs)
+
+
+
+        seq_len = enc_inputs.size(1)
+        pos = torch.arange(seq_len, dtype=torch.long, device=enc_inputs.device)
+        pos = pos.unsqueeze(0).expand_as(enc_inputs) # (S,) -> (B, S) #之前的代码这里面是错的,
+        enc_outputs = self.src_emb(enc_inputs) + self.pos_emb(pos)
+
+
+
+
         enc_self_attn_mask = get_attn_pad_mask(enc_inputs, enc_inputs)#get_attn_pad_mask 这个函数很重要.
         enc_self_attns = []
         for layer in self.layers:
@@ -332,11 +319,24 @@ class Decoder(nn.Module):
         self.layers = nn.ModuleList([DecoderLayer() for _ in range(n_layers)])
 
     def forward(self, dec_inputs, enc_inputs, enc_outputs): # dec_inputs : [batch_size x target_len]
-        dec_outputs = self.tgt_emb(dec_inputs) + self.pos_emb(dec_inputs)
-        dec_outputs=dec_outputs.cuda()
-        dec_self_attn_pad_mask = get_attn_pad_mask(dec_inputs, dec_inputs).cuda()
-        dec_self_attn_subsequent_mask = get_attn_subsequent_mask(dec_inputs).cuda()#只有这个地方跟encoder不一样.
-        dec_self_attn_mask = torch.gt((dec_self_attn_pad_mask + dec_self_attn_subsequent_mask).cuda(), 0).cuda()#表示可以遮挡的地方都遮挡上.
+
+
+
+        seq_len = enc_inputs.size(1)
+        pos = torch.arange(seq_len, dtype=torch.long, device=dec_inputs.device)
+        pos = pos.unsqueeze(0).expand_as(dec_inputs) # (S,) -> (B, S) #之前的代码这里面是错的,
+        dec_outputs = self.tgt_emb(dec_inputs) + self.pos_emb(pos)
+
+
+
+
+
+
+
+        dec_outputs=dec_outputs
+        dec_self_attn_pad_mask = get_attn_pad_mask(dec_inputs, dec_inputs)
+        dec_self_attn_subsequent_mask = get_attn_subsequent_mask(dec_inputs)#只有这个地方跟encoder不一样.
+        dec_self_attn_mask = torch.gt((dec_self_attn_pad_mask + dec_self_attn_subsequent_mask), 0)#表示可以遮挡的地方都遮挡上.
 #get_attn_pad_mask 这个函数让编码为0的不起作用.get_attn_subsequent_mask 让后续的不起作用.因为inference时候只能从左到有推断.
         dec_enc_attn_mask = get_attn_pad_mask(dec_inputs, enc_inputs)
 
@@ -350,9 +350,9 @@ class Decoder(nn.Module):
 class Transformer(nn.Module):
     def __init__(self):
         super(Transformer, self).__init__()
-        self.encoder = Encoder().cuda()
-        self.decoder = Decoder().cuda()
-        self.projection = nn.Linear(d_model, tgt_vocab_size, bias=False).cuda()
+        self.encoder = Encoder()
+        self.decoder = Decoder()
+        self.projection = nn.Linear(d_model, tgt_vocab_size, bias=False)
     def forward(self, enc_inputs, dec_inputs):
         enc_outputs, enc_self_attns = self.encoder(enc_inputs)
         dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_inputs, enc_outputs)
@@ -382,9 +382,9 @@ def greedy_decoder(model, enc_input, start_symbol):
     :return: The target input
     """
     enc_outputs, enc_self_attns = model.encoder(enc_input)
-    dec_input = torch.zeros(1, 5).type_as(enc_input.data)#推断时候dec_input第一个位置是0,所以训练时候的数据集ys的第一个位置需要写0.
+    dec_input = torch.zeros(1, juzichang).type_as(enc_input.data)#推断时候dec_input第一个位置是0,所以训练时候的数据集ys的第一个位置需要写0.
     next_symbol = start_symbol#从S开始赋值
-    for i in range(0, 5):#一个句子有几个单词就写几
+    for i in range(0, juzichang):#一个句子有几个单词就写几
         dec_input[0][i] = next_symbol #比如先从5,0,0,0,0开始预测.那么就把5,0,0,0,0当做已知输入进去. 不停的放进去. 然后根据dec_input和enc_input来联合推出下一个位置.
         dec_outputs, _, _ = model.decoder(dec_input, enc_input, enc_outputs)#得到第一个单词的输出 dec_outputs
         projected = model.projection(dec_outputs)
@@ -406,28 +406,29 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 
 
-# for epoch in range(epoch_num):  # 对整套数据训练三次，每次训练的顺序可以不同
-#
-#     for step, (x, y,z) in enumerate(loader):  # 每一步 loader 释放一小批数据用来学习
+for epoch in range(epoch_num):  # 对整套数据训练三次，每次训练的顺序可以不同
 
+    for step, (x, y,z) in enumerate(loader):  # 每一步 loader 释放一小批数据用来学习
 
-for epoch in range(20):
-    optimizer.zero_grad()
-
-    ###########----------数据准备完毕--------------##########################
-    enc_inputs, dec_inputs, target_batch = make_batch(sentences)
-    model=model.cuda()
-    enc_inputs=enc_inputs.cuda()
-    dec_inputs=dec_inputs.cuda()
-    target_batch=target_batch.cuda()
+        #新数据
+        optimizer.zero_grad() # 当前行的理解:https://blog.csdn.net/scut_salmon/article/details/82414730
+        model = model
+        enc_inputs = x
+        dec_inputs = y
+        target_batch = z
 
 
 
-    outputs, enc_self_attns, dec_self_attns, dec_enc_attns = model(enc_inputs, dec_inputs)
-    loss = criterion(outputs, target_batch.contiguous().view(-1))#output.shape (5,7),一行代表一个单词的概率分布.所以总的说就是算cross entropy即可.也就是说cross entropy里面的groud true直接填写标签tensor就可以了.更方便.
-    print('Epoch:', '%04d' % (epoch + 1), 'cost =', '{:.6f}'.format(loss))
-    loss.backward()
-    optimizer.step()
+
+
+
+
+
+        outputs, enc_self_attns, dec_self_attns, dec_enc_attns = model(enc_inputs, dec_inputs)
+        loss = criterion(outputs, target_batch.contiguous().view(-1))#output.shape (5,7),一行代表一个单词的概率分布.所以总的说就是算cross entropy即可.也就是说cross entropy里面的groud true直接填写标签tensor就可以了.更方便.
+        print('Epoch:', '%04d' % (epoch + 1), 'cost =', '{:.6f}'.format(loss))
+        loss.backward()
+        optimizer.step()
 
 # Test
 greedy_dec_input = greedy_decoder(model, enc_inputs, start_symbol=tgt_vocab["S"])#再来看test时候如何使用模型来做预测翻译.  greedy_decoder生成预测开始的编码
