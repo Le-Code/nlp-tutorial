@@ -26,7 +26,7 @@ import numpy as np
 '''
 # https://stackoverflow.com/questions/35871920/numpy-loadtxt-valueerror-wrong-number-of-columns
 import torch
-torch.cuda.synchronize()
+
 
 import torch.utils.data as Data
 
@@ -226,9 +226,9 @@ class ScaledDotProductAttention(nn.Module):
 class MultiHeadAttention(nn.Module):
     def __init__(self):
         super(MultiHeadAttention, self).__init__()
-        self.W_Q = nn.Linear(d_model, d_k * n_heads)
-        self.W_K = nn.Linear(d_model, d_k * n_heads)
-        self.W_V = nn.Linear(d_model, d_v * n_heads)
+        self.W_Q = nn.Linear(d_model, d_k * n_heads).cuda()
+        self.W_K = nn.Linear(d_model, d_k * n_heads).cuda()
+        self.W_V = nn.Linear(d_model, d_v * n_heads).cuda()
     def forward(self, Q, K, V, attn_mask):
         # q: [batch_size x len_q x d_model], k: [batch_size x len_k x d_model], v: [batch_size x len_k x d_model]
 
@@ -244,8 +244,8 @@ class MultiHeadAttention(nn.Module):
         # context: [batch_size x n_heads x len_q x d_v], attn: [batch_size x n_heads x len_q(=len_k) x len_k(=len_q)]
         context, attn = ScaledDotProductAttention()(q_s, k_s, v_s, attn_mask)
         context = context.transpose(1, 2).contiguous().view(batch_size, -1, n_heads * d_v) # context: [batch_size x len_q x n_heads * d_v]
-        output = nn.Linear(n_heads * d_v, d_model)(context)#contiguous()是旧版pytorch写法,为了后面使用.view  https://blog.csdn.net/appleml/article/details/80143212
-        return nn.LayerNorm(d_model)(output + residual), attn # output: [batch_size x len_q x d_model]
+        output = nn.Linear(n_heads * d_v, d_model).cuda()(context)#contiguous()是旧版pytorch写法,为了后面使用.view  https://blog.csdn.net/appleml/article/details/80143212
+        return nn.LayerNorm(d_model).cuda()(output + residual), attn # output: [batch_size x len_q x d_model]
 
 class PoswiseFeedForwardNet(nn.Module):
     def __init__(self):
@@ -257,13 +257,13 @@ class PoswiseFeedForwardNet(nn.Module):
         residual = inputs # inputs : [batch_size, len_q, d_model]
         output = nn.ReLU()(self.conv1(inputs.transpose(1, 2)))
         output = self.conv2(output).transpose(1, 2)
-        return nn.LayerNorm(d_model)(output + residual)
+        return nn.LayerNorm(d_model).cuda()(output + residual)
 
 class EncoderLayer(nn.Module):
     def __init__(self):
         super(EncoderLayer, self).__init__()
-        self.enc_self_attn = MultiHeadAttention()
-        self.pos_ffn = PoswiseFeedForwardNet()
+        self.enc_self_attn = MultiHeadAttention().cuda()
+        self.pos_ffn = PoswiseFeedForwardNet().cuda()
 
     def forward(self, enc_inputs, enc_self_attn_mask):
         enc_outputs, attn = self.enc_self_attn(enc_inputs, enc_inputs, enc_inputs, enc_self_attn_mask) # enc_inputs to same Q,K,V
@@ -333,10 +333,10 @@ class Decoder(nn.Module):
 
 
 
-        dec_outputs=dec_outputs
-        dec_self_attn_pad_mask = get_attn_pad_mask(dec_inputs, dec_inputs)
-        dec_self_attn_subsequent_mask = get_attn_subsequent_mask(dec_inputs)#只有这个地方跟encoder不一样.
-        dec_self_attn_mask = torch.gt((dec_self_attn_pad_mask + dec_self_attn_subsequent_mask), 0)#表示可以遮挡的地方都遮挡上.
+        dec_outputs=dec_outputs.cuda()
+        dec_self_attn_pad_mask = get_attn_pad_mask(dec_inputs, dec_inputs).cuda()
+        dec_self_attn_subsequent_mask = get_attn_subsequent_mask(dec_inputs).cuda()#只有这个地方跟encoder不一样.
+        dec_self_attn_mask = torch.gt((dec_self_attn_pad_mask.cuda() + dec_self_attn_subsequent_mask.cuda()), 0).cuda()#表示可以遮挡的地方都遮挡上.
 #get_attn_pad_mask 这个函数让编码为0的不起作用.get_attn_subsequent_mask 让后续的不起作用.因为inference时候只能从左到有推断.
         dec_enc_attn_mask = get_attn_pad_mask(dec_inputs, enc_inputs)
 
@@ -350,12 +350,12 @@ class Decoder(nn.Module):
 class Transformer(nn.Module):
     def __init__(self):
         super(Transformer, self).__init__()
-        self.encoder = Encoder()
-        self.decoder = Decoder()
-        self.projection = nn.Linear(d_model, tgt_vocab_size, bias=False)
+        self.encoder = Encoder().cuda()
+        self.decoder = Decoder().cuda()
+        self.projection = nn.Linear(d_model, tgt_vocab_size, bias=False).cuda()
     def forward(self, enc_inputs, dec_inputs):
         enc_outputs, enc_self_attns = self.encoder(enc_inputs)
-        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_inputs, enc_outputs)
+        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder.cuda()(dec_inputs, enc_inputs, enc_outputs)
         dec_logits = self.projection(dec_outputs) # dec_logits : [batch_size x src_vocab_size x tgt_vocab_size]
         return dec_logits.view(-1, dec_logits.size(-1)), enc_self_attns, dec_self_attns, dec_enc_attns#输出的结果:dec_logits.view(-1, dec_logits.size(-1))表示的是一排数字,表示预测后得到的翻译结果的index码.
 
@@ -412,10 +412,10 @@ for epoch in range(epoch_num):  # 对整套数据训练三次，每次训练的�
 
         #新数据
         optimizer.zero_grad() # 当前行的理解:https://blog.csdn.net/scut_salmon/article/details/82414730
-        model = model
-        enc_inputs = x
-        dec_inputs = y
-        target_batch = z
+        model = model.cuda()
+        enc_inputs = x.cuda()
+        dec_inputs = y.cuda()
+        target_batch = z.cuda()
 
 
 
@@ -426,7 +426,8 @@ for epoch in range(epoch_num):  # 对整套数据训练三次，每次训练的�
 
         outputs, enc_self_attns, dec_self_attns, dec_enc_attns = model(enc_inputs, dec_inputs)
         loss = criterion(outputs, target_batch.contiguous().view(-1))#output.shape (5,7),一行代表一个单词的概率分布.所以总的说就是算cross entropy即可.也就是说cross entropy里面的groud true直接填写标签tensor就可以了.更方便.
-        print('Epoch:', '%04d' % (epoch + 1), 'cost =', '{:.6f}'.format(loss))
+        if step % 100 == 0:
+         print('Epoch:', '%04d' % (epoch + 1), 'cost =', '{:.6f}'.format(loss))
         loss.backward()
         optimizer.step()
 
