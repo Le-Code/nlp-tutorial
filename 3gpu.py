@@ -13,7 +13,7 @@ print(torch.cuda.is_available())
 #------------所有超参数
 juzichang=100
 
-BATCH_SIZE = 128  # 批训练的数据个数，每组五个
+BATCH_SIZE = 70  # 批训练的数据个数，每组五个
 batch_size=BATCH_SIZE
 epoch_num=5
 
@@ -159,7 +159,7 @@ hanyu2 = torch.LongTensor(hanyu2)
 
 
 ###############################处理完毕#$#############下面开始进行跑学习
-BATCH_SIZE = 50
+
 import warnings
 import torch
 
