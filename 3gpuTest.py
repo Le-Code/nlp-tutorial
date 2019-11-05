@@ -1,17 +1,3 @@
-
-'''
-2019-11-06,0点28
-跑了一天多,还是错了,应该是哪里不对,
-所以模型不能直接大数据跑.应该先拿一个小数据集跑一下看看效果再说!!!!!!!!!
-
-'''
-
-
-
-
-
-
-
 '''
   code by Tae Hwan Jung(Jeff Jung) @graykode, Derek Miller @dmmiller612
   Reference : https://github.com/jadore801120/attention-is-all-you-need-pytorch
@@ -48,39 +34,126 @@ import torch
 
 import torch.utils.data as Data
 
+#
+# if 1:
+#     #把中英文bpe模型/bpe.vocab变成字典
+#     from collections import defaultdict
+#     dicA=defaultdict(int)
+#     with open('中英文bpe模型/bpe.vocab') as t:
+#         tmp=        t.readlines()
+#         for i in range(len(tmp)):
+#
+#             a=tmp[i].strip('\n').split('\t')
+#             dicA[a[0]]=i
+#
+#     import sentencepiece as spm
+#     sp = spm.SentencePieceProcessor()
+#     sp.Load("中英文bpe模型/bpe.model")
+#     print(sp.EncodeAsPieces('dsjafljdsl,我是一个人客结合线上线下大数据，线上通过运营商强大的数据挖掘能力，多方位精准锁定用户。线下通过场景大数据，依托智能硬件与大数据，汇集海量移动媒体和终端资源，为企业提供移动互联网精准营销与大数据应用服务'))
+#     _prepro = lambda x: [line.strip() for line in open(x, 'r').read().split("\n")]
+#     prepro_train1 = _prepro('/data/234/UM-Corpus/data/Bilingual/Bi-Education.txt')
+#
+#
+#     def _segment_and_write(sents, fname):
+#         with open(fname, "w") as fout:
+#             for sent in sents:
+#                 pieces = sp.EncodeAsPieces(sent)
+#                 pieces=[str(dicA[i]) for i in pieces]
+#                 #这个地方注意unk也自动编码了.因为字典里面有<unk>,不用自己操作.
+#
+#
+#                 fout.write(" ".join(pieces) + "\n")
+#
+#
+#     _segment_and_write(prepro_train1, "chineseEnglishDataCoded.bpe")
+# #跑完了,以后就用这个chineseEnglishDataCoded.bpe  这个编码后的进行学习了.
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# with open('chineseEnglishDataCoded.bpe') as file:
+#     tmp = file.readlines()
+#     tmp=tmp[:-1] #去掉最后一行空白字符,否则没法float转化
+#     yingyu = []
+#     hanyu1 = []
+#     hanyu2 = []
+#     print(len(tmp))
+#     for i in range(len(tmp)):
+#
+#
+#
+#
+#
+#
+#         #这里面根据字典补  p,s,e有问题. 对比自己的字典p,s,e就是0,2,3
+#         #应该p,s,e弄成不同的编码才对!
+#         #自定义的编码太烦了,果断全部改成自己的.弃用他给的数字编码
+#         #input句子第一个也应该写s,不然没法学习字符是不是第一个字符的特征.
+#         #不如都加上.这样更符合逻辑!!!!!!!!!!!!!!!!!!
+#
+#
+#         if i % 2 == 0:
+#             yingyu.append([2.] +[int(j) for j in tmp[i].strip('\n').split(' ')] + [3.])
+#         else:
+#             hanyu1.append([2.] + [int(j) for j in tmp[i].strip('\n').split(' ')]+ [3.])
+#             hanyu2.append([2.] +[int(j) for j in tmp[i].strip('\n').split(' ')] + [3.])
+#
+# #补0
+# yingyu=[i+[0.]*(juzichang-len(i)) for i in yingyu]
+# hanyu1=[i+[0.]*(juzichang-len(i)) for i in hanyu1]
+# hanyu2=[i+[0.]*(juzichang-len(i)) for i in hanyu2]
+#
+# #去除过长的数据
+# index_all=set()
+#
+#
+# for i in range(len(yingyu)):
+#     if len(yingyu[i])>juzichang:
+#         index_all.add(i)
+#     if len(hanyu1[i])>juzichang:
+#         index_all.add(i)
+#     if len(hanyu2[i])>juzichang:
+#         index_all.add(i)
+#
+# yingyu=[yingyu[i] for i in range(len(yingyu)) if i not in index_all]
+# hanyu1=[hanyu1[i] for i in range(len(hanyu1)) if i not in index_all]
+# hanyu2=[hanyu2[i] for i in range(len(hanyu2)) if i not in index_all]
+#
+# from torch.autograd import Variable
+#
+# yingyu = torch.LongTensor(yingyu)      #? 输入数据怎么还需要求导????
+# hanyu1 = torch.LongTensor(hanyu1)
+# hanyu2 = torch.LongTensor(hanyu2)
+#
+#
 
-if 1:
-    #把中英文bpe模型/bpe.vocab变成字典
-    from collections import defaultdict
-    dicA=defaultdict(int)
-    with open('中英文bpe模型/bpe.vocab') as t:
-        tmp=        t.readlines()
-        for i in range(len(tmp)):
 
-            a=tmp[i].strip('\n').split('\t')
-            dicA[a[0]]=i
 
-    import sentencepiece as spm
-    sp = spm.SentencePieceProcessor()
-    sp.Load("中英文bpe模型/bpe.model")
-    print(sp.EncodeAsPieces('dsjafljdsl,我是一个人客结合线上线下大数据，线上通过运营商强大的数据挖掘能力，多方位精准锁定用户。线下通过场景大数据，依托智能硬件与大数据，汇集海量移动媒体和终端资源，为企业提供移动互联网精准营销与大数据应用服务'))
-    _prepro = lambda x: [line.strip() for line in open(x, 'r').read().split("\n")]
-    prepro_train1 = _prepro('/data/234/UM-Corpus/data/Bilingual/Bi-Education.txt')
 
 
-    def _segment_and_write(sents, fname):
-        with open(fname, "w") as fout:
-            for sent in sents:
-                pieces = sp.EncodeAsPieces(sent)
-                pieces=[str(dicA[i]) for i in pieces]
-                #这个地方注意unk也自动编码了.因为字典里面有<unk>,不用自己操作.
 
 
-                fout.write(" ".join(pieces) + "\n")
 
 
-    _segment_and_write(prepro_train1, "chineseEnglishDataCoded.bpe")
-#跑完了,以后就用这个chineseEnglishDataCoded.bpe  这个编码后的进行学习了.
 
 
 
@@ -88,93 +161,6 @@ if 1:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-with open('chineseEnglishDataCoded.bpe') as file:
-    tmp = file.readlines()
-    tmp=tmp[:-1] #去掉最后一行空白字符,否则没法float转化
-    yingyu = []
-    hanyu1 = []
-    hanyu2 = []
-    print(len(tmp))
-    for i in range(len(tmp)):
-
-
-
-
-
-
-        #这里面根据字典补  p,s,e有问题. 对比自己的字典p,s,e就是0,2,3
-        #应该p,s,e弄成不同的编码才对!
-        #自定义的编码太烦了,果断全部改成自己的.弃用他给的数字编码
-        #input句子第一个也应该写s,不然没法学习字符是不是第一个字符的特征.
-        #不如都加上.这样更符合逻辑!!!!!!!!!!!!!!!!!!
-
-
-        if i % 2 == 0:
-            yingyu.append([2.] +[int(j) for j in tmp[i].strip('\n').split(' ')] + [3.])
-        else:
-            hanyu1.append([2.] + [int(j) for j in tmp[i].strip('\n').split(' ')]+ [3.])
-            hanyu2.append([2.] +[int(j) for j in tmp[i].strip('\n').split(' ')] + [3.])
-
-#补0
-yingyu=[i+[0.]*(juzichang-len(i)) for i in yingyu]
-hanyu1=[i+[0.]*(juzichang-len(i)) for i in hanyu1]
-hanyu2=[i+[0.]*(juzichang-len(i)) for i in hanyu2]
-
-#去除过长的数据
-index_all=set()
-
-
-for i in range(len(yingyu)):
-    if len(yingyu[i])>juzichang:
-        index_all.add(i)
-    if len(hanyu1[i])>juzichang:
-        index_all.add(i)
-    if len(hanyu2[i])>juzichang:
-        index_all.add(i)
-
-yingyu=[yingyu[i] for i in range(len(yingyu)) if i not in index_all]
-hanyu1=[hanyu1[i] for i in range(len(hanyu1)) if i not in index_all]
-hanyu2=[hanyu2[i] for i in range(len(hanyu2)) if i not in index_all]
-
-from torch.autograd import Variable
-
-yingyu = torch.LongTensor(yingyu)      #? 输入数据怎么还需要求导????
-hanyu1 = torch.LongTensor(hanyu1)
-hanyu2 = torch.LongTensor(hanyu2)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-###############################处理完毕#$#############下面开始进行跑学习
 
 import warnings
 import torch
@@ -194,21 +180,21 @@ import torch.utils.data as Data
 # 先转换成 torch 能识别的 Dataset
 #先拿一个小数据试试
 
-
-
-torch_dataset = Data.TensorDataset(yingyu, hanyu1,hanyu2)
-
-# 把 dataset 放入 DataLoader
-
-loader = Data.DataLoader(
-
-    dataset=torch_dataset,  # torch TensorDataset format
-
-    batch_size=BATCH_SIZE,  # 每组的大小
-
-    shuffle=False,  # 要不要打乱数据 (打乱比较好)
-
-)
+#
+#
+# torch_dataset = Data.TensorDataset(yingyu, hanyu1,hanyu2)
+#
+# # 把 dataset 放入 DataLoader
+#
+# loader = Data.DataLoader(
+#
+#     dataset=torch_dataset,  # torch TensorDataset format
+#
+#     batch_size=BATCH_SIZE,  # 每组的大小
+#
+#     shuffle=False,  # 要不要打乱数据 (打乱比较好)
+#
+# )
 
 # for epoch in range(epoch_num):  # 对整套数据训练三次，每次训练的顺序可以不同
 #
@@ -397,7 +383,7 @@ class Encoder(nn.Module):
         seq_len = enc_inputs.size(1)
         pos = torch.arange(seq_len, dtype=torch.long, device=enc_inputs.device)
         pos = pos.unsqueeze(0).expand_as(enc_inputs) # (S,) -> (B, S) #之前的代码这里面是错的,
-        enc_outputs = self.src_emb(enc_inputs) + self.pos_emb(pos)
+        enc_outputs = self.src_emb(enc_inputs.cuda()) + self.pos_emb(pos.cuda())
 
 
 
@@ -496,50 +482,74 @@ def showgraph(attn):
 
 
 model = Transformer()
-
+model2=Transformer()
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 
 
+#
+#
+# for epoch in range(epoch_num):  # 对整套数据训练三次，每次训练的顺序可以不同
+#
+#     for step, (x, y,z) in enumerate(loader):  # 每一步 loader 释放一小批数据用来学习
+#
+#         #新数据
+#         optimizer.zero_grad() # 当前行的理解:https://blog.csdn.net/scut_salmon/article/details/82414730
+#         model = model.cuda()
+#         enc_inputs = x.cuda()
+#         dec_inputs = y.cuda()
+#         target_batch = z.cuda()
+#
+#
+#
+#
+#
+#
+#
+#
+#         outputs, enc_self_attns, dec_self_attns, dec_enc_attns = model.cuda()(enc_inputs, dec_inputs)
+#         loss = criterion(outputs, target_batch.contiguous().view(-1))#output.shape (5,7),一行代表一个单词的概率分布.所以总的说就是算cross entropy即可.也就是说cross entropy里面的groud true直接填写标签tensor就可以了.更方便.
+#         if step % 3000 == 0:
+#             print('Epoch:', '%04d' % (epoch + 1), 'cost =', '{:.6f}'.format(loss))
+#             state = {
+#                 'net  ':model.state_dict(),
+#            'optimizer'        :optimizer.state_dict(),
+#             'epoch':epoch}
+#
+#
+#
+#
+#             torch.save(state, 'savemoxing.pth')
+#         loss.backward()
+#         optimizer.step()
+
+import os,sys
+
+os.system('pwd')
+
+tmp=torch.load('./savemoxingFixed9999.pth')
+
+##
+
+model.load_state_dict(tmp['net  ']) #把key加进去.
+model=model.cuda()  #模型需要再扔cuda里面!!!!!!!!!
 
 
-for epoch in range(epoch_num):  # 对整套数据训练三次，每次训练的顺序可以不同
-
-    for step, (x, y,z) in enumerate(loader):  # 每一步 loader 释放一小批数据用来学习
-
-        #新数据
-        optimizer.zero_grad() # 当前行的理解:https://blog.csdn.net/scut_salmon/article/details/82414730
-        model = model.cuda()
-        enc_inputs = x.cuda()
-        dec_inputs = y.cuda()
-        target_batch = z.cuda()
+'''
+非常麻烦,所以以后一定要用torch.save(model,path)把模型和参数都存起来!!!!!!!!!!!
+'''
 
 
-
-
-
-
-
-
-        outputs, enc_self_attns, dec_self_attns, dec_enc_attns = model.cuda()(enc_inputs, dec_inputs)
-        loss = criterion(outputs, target_batch.contiguous().view(-1))#output.shape (5,7),一行代表一个单词的概率分布.所以总的说就是算cross entropy即可.也就是说cross entropy里面的groud true直接填写标签tensor就可以了.更方便.
-        if step % 3000 == 0:
-            print('Epoch:', '%04d' % (epoch + 1), 'cost =', '{:.6f}'.format(loss))
-            state = {
-                'net  ':model.state_dict(),
-           'optimizer'        :optimizer.state_dict(),
-            'epoch':epoch}
-
-
-
-
-            torch.save(state, 'savemoxing.pth')
-        loss.backward()
-        optimizer.step()
-
+##
 # Test
-greedy_dec_input = greedy_decoder(model, enc_inputs, start_symbol=tgt_vocab["S"])#再来看test时候如何使用模型来做预测翻译.  greedy_decoder生成预测开始的编码
+from torch.autograd import Variable
+enc_inputs=[[900.,300.,4032.,5034.,6120.,3.]+[0.]*94]
+enc_inputs=Variable(torch.LongTensor(enc_inputs)).cuda()
+
+
+
+greedy_dec_input = greedy_decoder(model, enc_inputs, start_symbol=2.)#再来看test时候如何使用模型来做预测翻译.  greedy_decoder生成预测开始的编码
 predict, _, _, _ = model(enc_inputs, greedy_dec_input)
 predict = predict.data.max(1, keepdim=True)[1]
-print(sentences[0], '->', [number_dict[n.item()] for n in predict.squeeze()])
+print(predict)
